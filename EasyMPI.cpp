@@ -54,6 +54,22 @@ namespace EasyMPI
 		return EasyMPI::mpiStatus;
 	}
 
+	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
+	{
+		masterWait(slaveBroadcastMsg);
+		slavesWait(masterBroadcastMsg);
+	}
+
+	void EasyMPI::masterScheduleTasks(vector<string> commands, vector<string> messages)
+	{
+		// TODO
+	}
+
+	void EasyMPI::slaveWaitForTasks()
+	{
+		// TODO
+	}
+
 	void EasyMPI::masterWait(string slaveBroadcastMsg)
 	{
 		// receive buffer
@@ -198,11 +214,5 @@ namespace EasyMPI
 
 			cout << "Slave process [" << rank << "] is released..." << endl;
 		}
-	}
-
-	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
-	{
-		masterWait(slaveBroadcastMsg);
-		slavesWait(masterBroadcastMsg);
 	}
 }

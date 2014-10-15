@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace EasyMPI
 {
@@ -54,9 +55,33 @@ namespace EasyMPI
 		static MPI_Status* getMPIStatus();
 
 		/*!
+		 * Master process schedules tasks (command, message) to slaves.
+		 * Exits when all tasks have been completed.
+		 *
+		 * @param[in] commands List of commands to perform tasks
+		 * @param[in] messages List of corresponding messages for each command
+		 */
+		static void masterScheduleTasks(vector<string> commands, vector<string> messages);
+
+		/*!
+		 * Slave process waits for task commands from master.
+		 */
+		static void slaveWaitForTasks();
+
+		/*!
+		 * All processes must reach this point before continuing.
+		 *
+		 * @param[in] slaveBroadcastMsg Message to broadcast to slaves
+		 * @param[in] masterBroadcastMsg Message to broadcast to master
+		 */
+		static void synchronize(string slaveBroadcastMsg, string masterBroadcastMsg);
+
+		/*!
 		 * The master waits until all slave processes 
 		 * reach this point before continuing. 
 		 * Slave processes continue past this point.
+		 *
+		 * DEPRECATED.
 		 *
 		 * @param[in] slaveBroadcastMsg Message to broadcast to slaves
 		 */
@@ -67,19 +92,11 @@ namespace EasyMPI
 		 * reaches this point before continuing.
 		 * The master process continues past this point.
 		 *
+		 * DEPRECATED.
+		 *
 		 * @param[in] masterBroadcastMsg Message to broadcast to master
 		 */
 		static void slavesWait(string masterBroadcastMsg);
-
-		/*!
-		 * Equivalent to the masterWait followed by slavesWait. 
-		 * This means all processes must reach this point 
-		 * before continuing.
-		 *
-		 * @param[in] slaveBroadcastMsg Message to broadcast to slaves
-		 * @param[in] masterBroadcastMsg Message to broadcast to master
-		 */
-		static void synchronize(string slaveBroadcastMsg, string masterBroadcastMsg);
 	};
 }
 
