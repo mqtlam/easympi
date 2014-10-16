@@ -91,6 +91,12 @@ namespace EasyMPI
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
 
+		if (numProcesses == 1)
+		{
+			cerr << "Cannot run master-slave with one process!" << endl;
+			return;
+		}
+
 		if (commands.size() != messages.size())
 		{
 			cerr << "Commands size does not equal messages size." << endl;
@@ -259,6 +265,10 @@ namespace EasyMPI
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
+		
+		if (numProcesses == 1)
+			return;
+		
 		char recvbuff[MAX_MESSAGE_SIZE];
 
 		// wait until get a message from master
@@ -286,6 +296,9 @@ namespace EasyMPI
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
+
+		if (numProcesses == 1)
+			return;
 
 		// send master the finished message
 		cout << "Slave [" << rank << "/" << numProcesses << "] is telling master it has finished a task." << endl;
