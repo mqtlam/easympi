@@ -24,7 +24,7 @@ namespace EasyMPI
 		if (rc != MPI_SUCCESS)
 		{
 			cerr << "Error starting MPI program. Terminating.";
-			exit(1);
+			abortMPI(1);
 		}
 
 		// get size and rank
@@ -41,10 +41,26 @@ namespace EasyMPI
 	void EasyMPI::finalize()
 	{
 		// synchronize
-		synchronize("FINALSLAVEMSG", "FINALMASTERMSG");
+		//synchronize("FINALSLAVEMSG", "FINALMASTERMSG");
 
 		MPI_Finalize();
 		EasyMPI::finalized = true;
+	}
+
+	void EasyMPI::abortMPI(int errcode)
+	{
+		if (EasyMPI::initialized)
+		{
+			const int numProcesses = getNumProcesses();
+			const int rank = getProcessID();
+			cerr << "Process [" << rank << "/" << numProcesses << "] called ABORT!" << endl;
+
+			MPI_Abort(MPI_COMM_WORLD, errcode);
+		}
+		else
+		{
+			exit(errcode);
+		}
 	}
 
 	int EasyMPI::getProcessID()
@@ -78,149 +94,156 @@ namespace EasyMPI
 		if (commands.size() != messages.size())
 		{
 			cerr << "Commands size does not equal messages size." << endl;
-			exit(1);
+			abortMPI(1);
 		}
 
-		// state variables
-		vector<bool> finishedTasks; // maintain which tasks are completed
-		vector<int> processTask; // maintain which process is assigned to a task
-		queue<int> unassignedTasks; // maintain queue of tasks waiting to be processed
-		queue<int> availableProcesses; // maintain queue of available processes for work
-
-		// initialize state
-		for (int i = 0; i < numTasks; i++)
+		if (numTasks == 0)
 		{
-			finishedTasks.push_back(false);
-			unassignedTasks.push(i);
+			cout << "No tasks. Nothing to process." << endl;
 		}
-		processTask.push_back(-1);
-		for (int i = 1; i < numProcesses; i++)
+		else
 		{
-			availableProcesses.push(i);
-			processTask.push_back(-1);
-		}
+			// state variables
+			vector<bool> finishedTasks; // maintain which tasks are completed
+			vector<int> processTask; // maintain which process is assigned to a task
+			queue<int> unassignedTasks; // maintain queue of tasks waiting to be processed
+			queue<int> availableProcesses; // maintain queue of available processes for work
 
-		// assign as many tasks to processes as possible
-		while (!availableProcesses.empty())
-		{
-			if (unassignedTasks.empty())
-				break;
-
-			// get available process
-			int slaveID = availableProcesses.front();
-			availableProcesses.pop();
-
-			// get task
-			int taskID = unassignedTasks.front();
-			unassignedTasks.pop();
-
-			// assign task to available process by sending message to slave
-			cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
-			string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
-			const char* fullMessageString = fullMessage.c_str();
-			int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
-
-			// update state
-			processTask[slaveID] = taskID;
-		}
-
-		// wait for messages until all tasks are assigned and completed
-		while (true)
-		{
-			int msgFlag = 0;
-			MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, EasyMPI::mpiStatus);
-
-			// if a messsage is available
-			if (msgFlag)
+			// initialize state
+			for (int i = 0; i < numTasks; i++)
 			{
-				// get the message tag and especially the source
-				int messageID = (*EasyMPI::mpiStatus).MPI_TAG;
-				int messageSource = (*EasyMPI::mpiStatus).MPI_SOURCE;
-				cout << "A message from process [" << messageSource << "/" << numProcesses << "]." << endl;
+				finishedTasks.push_back(false);
+				unassignedTasks.push(i);
+			}
+			processTask.push_back(-1); // process 0
+			for (int i = 1; i < numProcesses; i++)
+			{
+				availableProcesses.push(i);
+				processTask.push_back(-1);
+			}
 
-				// receive the message into the buffer and check if it is the correct (slave finish) command
-				int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
+			// assign as many tasks to processes as possible
+			while (!availableProcesses.empty())
+			{
+				if (unassignedTasks.empty())
+					break;
+
+				// get available process
+				int slaveID = availableProcesses.front();
+				availableProcesses.pop();
+
+				// get task
+				int taskID = unassignedTasks.front();
+				unassignedTasks.pop();
+
+				// assign task to available process by sending message to slave
+				cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
+				string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
+				const char* fullMessageString = fullMessage.c_str();
+				int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+
+				// update state
+				processTask[slaveID] = taskID;
+			}
+
+			// wait for messages until all tasks are assigned and completed
+			while (true)
+			{
+				int msgFlag = 0;
+				MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, EasyMPI::mpiStatus);
+
+				// if a messsage is available
+				if (msgFlag)
+				{
+					// get the message tag and especially the source
+					int messageID = (*EasyMPI::mpiStatus).MPI_TAG;
+					int messageSource = (*EasyMPI::mpiStatus).MPI_SOURCE;
+					cout << "A message from process [" << messageSource << "/" << numProcesses << "]." << endl;
+
+					// receive the message into the buffer and check if it is the correct (slave finish) command
+					int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
 				
-				// process full message into command and message components
-				string fullMessage = recvbuff;
-				string command;
-				string message;
-				bool success = parseFullMessage(fullMessage, command, message);
+					// process full message into command and message components
+					string fullMessage = recvbuff;
+					string command;
+					string message;
+					bool success = parseFullMessage(fullMessage, command, message);
 
-				// check if correct (slave finish) message
-				const int commandSize = command.length();
-				bool correctMessage = true;
-				for (int i = 0; i < commandSize; i++)
-				{
-					if (command.at(i) != SLAVE_FINISH_MESSAGE.at(i))
+					// check if correct (slave finish) message
+					const int commandSize = command.length();
+					bool correctMessage = true;
+					for (int i = 0; i < commandSize; i++)
 					{
-						correctMessage = false;
-						break;
+						if (command.at(i) != SLAVE_FINISH_MESSAGE.at(i))
+						{
+							correctMessage = false;
+							break;
+						}
 					}
-				}
 		
-				// if correct message, update state and check what else needs to be done
-				if (correctMessage)
-				{
-					cout << "Master received finished message from slave [" << messageSource << "/" << numProcesses << "]." << endl;
-					
-					// get completed task ID
-					int taskID = processTask[messageSource];
-
-					// sanity check
-					if (taskID < 0 || taskID >= numTasks)
+					// if correct message, update state and check what else needs to be done
+					if (correctMessage)
 					{
-						cerr << "Task ID '" << taskID << "' gotten is invalid!" << endl;
-						exit(1);
-					}
-
-					// update state
-					processTask[messageSource] = -1;
-					finishedTasks[taskID] = true;
-					availableProcesses.push(messageSource);
+						cout << "Master received finished message from slave [" << messageSource << "/" << numProcesses << "]." << endl;
 					
-					// check if any other tasks need to be processed
-					// otherwise check all tasks are completed
-					if (!unassignedTasks.empty())
-					{
-						// get available process
-						int slaveID = availableProcesses.front();
-						availableProcesses.pop();
+						// get completed task ID
+						int taskID = processTask[messageSource];
 
-						// get task
-						int taskID = unassignedTasks.front();
-						unassignedTasks.pop();
-
-						// assign task to available process by sending message to slave
-						cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
-						string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
-						const char* fullMessageString = fullMessage.c_str();
-						int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+						// sanity check
+						if (taskID < 0 || taskID >= numTasks)
+						{
+							cerr << "Task ID '" << taskID << "' gotten is invalid!" << endl;
+							abortMPI(1);
+						}
 
 						// update state
-						processTask[slaveID] = taskID;
-					}
-					else
-					{
-						// test if every task is finished
-						bool allFinish = true;
-						for (int i = 0; i < numTasks; i++)
+						processTask[messageSource] = -1;
+						finishedTasks[taskID] = true;
+						availableProcesses.push(messageSource);
+					
+						// check if any other tasks need to be processed
+						// otherwise check all tasks are completed
+						if (!unassignedTasks.empty())
 						{
-							if (!finishedTasks[i])
-							{
-								cout << "Task " << i << " is still being processed..." << endl;
-								allFinish = false;
-							}
+							// get available process
+							int slaveID = availableProcesses.front();
+							availableProcesses.pop();
+
+							// get task
+							int taskID = unassignedTasks.front();
+							unassignedTasks.pop();
+
+							// assign task to available process by sending message to slave
+							cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
+							string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
+							const char* fullMessageString = fullMessage.c_str();
+							int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+
+							// update state
+							processTask[slaveID] = taskID;
 						}
-						if (allFinish)
+						else
 						{
-							break;
+							// test if every task is finished
+							bool allFinish = true;
+							for (int i = 0; i < numTasks; i++)
+							{
+								if (!finishedTasks[i])
+								{
+									cout << "Task " << i << " is still being processed..." << endl;
+									allFinish = false;
+								}
+							}
+							if (allFinish)
+							{
+								break;
+							}
 						}
 					}
 				}
 			}
+			cout << "All tasks are finished!" << endl;
 		}
-		cout << "All tasks are finished!" << endl;
 
 		// everything finished, so send finish command to all slaves
 		for (int slaveID = 1; slaveID < getNumProcesses(); slaveID++)
@@ -429,7 +452,7 @@ namespace EasyMPI
 		if (size > MAX_MESSAGE_SIZE)
 		{
 			cerr << "Message length exceeds max message size!" << endl;
-			exit(1);
+			abortMPI(1);
 		}
 
 		// convert size to string

@@ -46,6 +46,11 @@ namespace EasyMPI
 		static void finalize();
 		
 		/*!
+		 * Abort program "cleanly."
+		 */
+		static void abortMPI(int errcode);
+
+		/*!
 		 * Get the process ID (rank).
 		 */
 		static int getProcessID();
