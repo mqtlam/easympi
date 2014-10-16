@@ -120,7 +120,7 @@ namespace EasyMPI
 		 */
 		static void slavesWait(string masterBroadcastMsg);
 
-	public:
+	private:
 		/*!
 		 * Construct full message.
 		 * size<commandstring;messagestring>
