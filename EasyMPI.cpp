@@ -1,7 +1,13 @@
 #include "EasyMPI.h"
+#include <queue>
+#include <iomanip>
+#include <sstream>
 
 namespace EasyMPI
 {
+	const int EasyMPI::MAX_MESSAGE_SIZE = 256;
+	const int EasyMPI::MAX_NUM_PROCESSES = 512;
+
 	int EasyMPI::processID = -1;
 	int EasyMPI::numProcesses = 0;
 	bool EasyMPI::initialized = false;
@@ -33,7 +39,7 @@ namespace EasyMPI
 	void EasyMPI::finalize()
 	{
 		// synchronize
-		synchronize("FINAL1", "FINAL2");
+		synchronize("FINALSLAVEMSG", "FINALMASTERMSG");
 
 		MPI_Finalize();
 		EasyMPI::finalized = true;
@@ -73,7 +79,7 @@ namespace EasyMPI
 	void EasyMPI::masterWait(string slaveBroadcastMsg)
 	{
 		// receive buffer
-		char recvbuff[256];
+		char recvbuff[MAX_MESSAGE_SIZE];
 		const char* SLAVEBROADCASTMSG = slaveBroadcastMsg.c_str();
 		const int SLAVEBROADCASTMSG_SIZE = slaveBroadcastMsg.length();
 	
@@ -85,7 +91,7 @@ namespace EasyMPI
 			cout << "Master process [" << rank << "] is waiting to get " << slaveBroadcastMsg << " message from all slaves..." << endl;
 
 			// wait until all slaves are done
-			bool finish[512];
+			bool finish[MAX_NUM_PROCESSES];
 			finish[0] = true;
 			for (int i = 1; i < numProcesses; i++)
 			{
@@ -165,7 +171,7 @@ namespace EasyMPI
 	void EasyMPI::slavesWait(string masterBroadcastMsg)
 	{
 		// receive buffer
-		char recvbuff[256];
+		char recvbuff[MAX_MESSAGE_SIZE];
 		const char* MASTERBROADCASTMSG = masterBroadcastMsg.c_str();
 		const int MASTERBROADCASTMSG_SIZE = masterBroadcastMsg.length();
 
@@ -214,5 +220,61 @@ namespace EasyMPI
 
 			cout << "Slave process [" << rank << "] is released..." << endl;
 		}
+	}
+
+	string EasyMPI::constructFullMessage(string command, string message)
+	{
+		// size<commandstring;messagestring>XXX...
+
+		// calculate size of full message
+		int commandLength = command.length();
+		int messageLength = message.length();
+		int size = 3 + 1 + commandLength + 1 + messageLength + 1;
+
+		if (size > MAX_MESSAGE_SIZE)
+		{
+			cerr << "Message length exceeds max message size!" << endl;
+			exit(1);
+		}
+
+		// convert size to string
+		stringstream sizeSS;
+		sizeSS << setfill('0') << setw(3) << size;
+		
+		// construct full message
+		stringstream ss;
+		ss << sizeSS.str() << "<" << command << ";" << message << ">";
+		stringstream fullMessageSS;
+		fullMessageSS << std::left << setfill('X') << setw(MAX_MESSAGE_SIZE) << ss.str();
+
+		cout << "Full message constructed: '" << fullMessageSS.str() << "'" << endl;
+
+		return fullMessageSS.str();
+	}
+
+	bool EasyMPI::parseFullMessage(string fullMessage, string& command, string& message)
+	{
+		// size<commandstring;messagestring>XXX...
+
+		// get full message size
+		string messageSizeString = fullMessage.substr(0, 3);
+		int messageSize = atoi(messageSizeString.c_str());
+
+		// some sanity check
+		if (fullMessage.at(3) != '<' || fullMessage.at(messageSize-1) != '>')
+			return false;
+
+		// get content between < and >
+		string line = fullMessage.substr(4, messageSize-5);
+
+		// parse content to get command and message
+		stringstream ss(line);
+		getline(ss, command, ';');
+		getline(ss, message, ';');
+
+		cout << "Command parsed: '" << command << "'" << endl;
+		cout << "Message parsed: '" << message << "'" << endl;
+
+		return true;
 	}
 }

@@ -22,6 +22,9 @@ namespace EasyMPI
 	class EasyMPI
 	{
 	private:
+		const static int MAX_MESSAGE_SIZE; //!< Maximum message size
+		const static int MAX_NUM_PROCESSES; //!< Maximum number of processes
+
 		static int processID; //!< Process ID
 		static int numProcesses; //!< Number of processes
 		static bool initialized; //!< Whether called MPI initialized
@@ -101,6 +104,28 @@ namespace EasyMPI
 		 * @param[in] masterBroadcastMsg Message to broadcast to master
 		 */
 		static void slavesWait(string masterBroadcastMsg);
+
+	public:
+		/*!
+		 * Construct full message.
+		 * size<commandstring;messagestring>
+		 *
+		 * @param[in] command Command string
+		 * @param[in] message Message string
+		 * @return Full message
+		 */
+		static string constructFullMessage(string command, string message);
+
+		/*!
+		 * Parse full message.
+		 * size<commandstring;messagestring>
+		 *
+		 * @param[in] fullMessage Full message
+		 * @param[out] command Command string
+		 * @param[out] message Message string
+		 * @return true if message parsed successfully
+		 */
+		static bool parseFullMessage(string fullMessage, string& command, string& message);
 	};
 }
 

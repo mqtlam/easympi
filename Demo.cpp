@@ -66,13 +66,15 @@ void slaveDemo()
 		{
 			std::cout << "Got DEMO1 command on process " << EasyMPI::EasyMPI::getProcessID() 
 				<< " with message: " << message << std::endl;
+			// do stuff like call another function
 		}
 		else if (command.compare("DEMO2") == 0)
 		{
 			std::cout << "Got DEMO2 command on process " << EasyMPI::EasyMPI::getProcessID() 
 				<< " with message: " << message << std::endl;
+			// do stuff like call another function
 		}
-		else if (command.compare("FINISH") == 0)
+		else if (command.compare("FINISHDEMO") == 0)
 		{
 			std::cout << "Got the FINISH command on process " << EasyMPI::EasyMPI::getProcessID()
 				<< ". Exiting slave loop..." << std::endl;
