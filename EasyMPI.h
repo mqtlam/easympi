@@ -13,8 +13,19 @@ namespace EasyMPI
 	/*!
 	 * EasyMPI is a class that implements basic high level parallelism functionality. 
 	 * The current version uses a master-slave architecture where the slaves perform 
-	 * parallel tasks while the master is responsible for the merging steps 
-	 * and overall main computational steps.
+	 * parallel tasks while the master is responsible for scheduling tasks to the slaves.
+	 *
+	 * Important API functions:
+	 *
+	 *	masterScheduleTasks()
+	 *	slaveWaitForTasks()
+	 *	slaveFinishedTask()
+	 *
+	 *	initialize()
+	 *	finalize()
+	 *
+	 *	getProcessID()
+	 *	getNumProcesses()
 	 *
 	 * Note that if the number of processes is 1, then this architecture fails.
 	 * Simply have logic to perform tasks with only one process.
