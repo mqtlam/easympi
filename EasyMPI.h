@@ -16,6 +16,9 @@ namespace EasyMPI
 	 * parallel tasks while the master is responsible for the merging steps 
 	 * and overall main computational steps.
 	 *
+	 * Note that if the number of processes is 1, then this architecture fails.
+	 * Simply have logic to perform tasks with only one process.
+	 *
 	 * Simply include the header file in your program to use these functions.
 	 * Make sure MPI is installed on your system.
 	 */
@@ -69,7 +72,7 @@ namespace EasyMPI
 		 * Master process schedules tasks (command, message) to slaves.
 		 * Exits when all tasks have been completed.
 		 *
-		 * @param[in] commands List of commands to perform tasks
+		 * @param[in] commands List of commands to perform tasks in parallel
 		 * @param[in] messages List of corresponding messages for each command
 		 */
 		static void masterScheduleTasks(vector<string> commands, vector<string> messages);
