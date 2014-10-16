@@ -78,12 +78,6 @@ namespace EasyMPI
 		return EasyMPI::mpiStatus;
 	}
 
-	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
-	{
-		masterWait(slaveBroadcastMsg);
-		slavesWait(masterBroadcastMsg);
-	}
-
 	void EasyMPI::masterScheduleTasks(vector<string> commands, vector<string> messages)
 	{
 		char recvbuff[MAX_MESSAGE_SIZE];
@@ -305,6 +299,12 @@ namespace EasyMPI
 		string fullMessage = constructFullMessage(SLAVE_FINISH_MESSAGE, "");
 		const char* fullMessageString = fullMessage.c_str();
 		int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+	}
+
+	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
+	{
+		masterWait(slaveBroadcastMsg);
+		slavesWait(masterBroadcastMsg);
 	}
 
 	void EasyMPI::masterWait(string slaveBroadcastMsg)

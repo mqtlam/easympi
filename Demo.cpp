@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 	commands.push_back("DEMO2");
 	messages.push_back("message2");
 
-	// master slave demo
+	// master-slave demo
 	if (EasyMPI::EasyMPI::getProcessID() == 0 && EasyMPI::EasyMPI::getNumProcesses() > 1)
 	{
 		masterDemo(commands, messages);
@@ -48,6 +48,7 @@ void masterDemo(std::vector<std::string> commands, std::vector<std::string> mess
 
 // The slave is responsible for checking (command, message) sent by the master.
 // Simply create logic to handle different command cases.
+// This also handles for when number of processes is 1.
 void slaveDemo(std::vector<std::string> commands, std::vector<std::string> messages)
 {
 	std::vector<std::string> commandSet = commands;
