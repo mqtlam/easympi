@@ -60,12 +60,12 @@ namespace EasyMPI
 		slavesWait(masterBroadcastMsg);
 	}
 
-	void EasyMPI::masterScheduleTasks(vector<string> commands, vector<string> messages)
+	void EasyMPI::masterScheduleTasks(vector<string> commands, vector<string> messages, string finishCommand)
 	{
 		// TODO
 	}
 
-	void EasyMPI::slaveWaitForTasks()
+	void EasyMPI::slaveWaitForTasks(string& command, string& message)
 	{
 		// TODO
 	}

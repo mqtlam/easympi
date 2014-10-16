@@ -60,13 +60,17 @@ namespace EasyMPI
 		 *
 		 * @param[in] commands List of commands to perform tasks
 		 * @param[in] messages List of corresponding messages for each command
+		 * @param[in] finishCommand String for telling every slave to finish after all tasks completed
 		 */
-		static void masterScheduleTasks(vector<string> commands, vector<string> messages);
+		static void masterScheduleTasks(vector<string> commands, vector<string> messages, string finishCommand);
 
 		/*!
 		 * Slave process waits for task commands from master.
+		 *
+		 * @param[out] command String containing command
+		 * @param[out] message String containing message for command
 		 */
-		static void slaveWaitForTasks();
+		static void slaveWaitForTasks(string& command, string& message);
 
 		/*!
 		 * All processes must reach this point before continuing.
