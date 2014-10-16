@@ -83,6 +83,8 @@ namespace EasyMPI
 		 * Master process schedules tasks (command, message) to slaves.
 		 * Exits when all tasks have been completed.
 		 *
+		 * Commands and messages may not include the semicolon ';' symbol!
+		 *
 		 * @param[in] commands List of commands to perform tasks in parallel
 		 * @param[in] messages List of corresponding messages for each command
 		 */

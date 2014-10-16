@@ -457,6 +457,20 @@ namespace EasyMPI
 	{
 		// size<commandstring;messagestring>XXX...
 
+		// sanity check
+		size_t foundSemicolon1 = command.find(";");
+		if (foundSemicolon1 != std::string::npos)
+		{
+			cerr << "command cannot contain a semicolon!";
+			abortMPI(1);
+		}
+		size_t foundSemicolon2 = message.find(";");
+		if (foundSemicolon2 != std::string::npos)
+		{
+			cerr << "message cannot contain a semicolon!";
+			abortMPI(1);
+		}
+
 		// calculate size of full message
 		int commandLength = command.length();
 		int messageLength = message.length();
