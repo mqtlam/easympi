@@ -2,6 +2,7 @@
 #include <queue>
 #include <iomanip>
 #include <sstream>
+#include <cstdlib>
 
 namespace EasyMPI
 {
@@ -140,7 +141,7 @@ namespace EasyMPI
 				cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
 				string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
 				const char* fullMessageString = fullMessage.c_str();
-				int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+				int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 
 				// update state
 				processTask[slaveID] = taskID;
@@ -217,7 +218,7 @@ namespace EasyMPI
 							cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
 							string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
 							const char* fullMessageString = fullMessage.c_str();
-							int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+							int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 
 							// update state
 							processTask[slaveID] = taskID;
@@ -251,7 +252,7 @@ namespace EasyMPI
 			cout << "Master is telling slave [" << slaveID << "/" << numProcesses << "] that all tasks are done." << endl;
 			string fullMessage = constructFullMessage(MASTER_FINISH_MESSAGE, "");
 			const char* fullMessageString = fullMessage.c_str();
-			int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
+			int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 		}
 	}
 
@@ -298,7 +299,7 @@ namespace EasyMPI
 		cout << "Slave [" << rank << "/" << numProcesses << "] is telling master it has finished a task." << endl;
 		string fullMessage = constructFullMessage(SLAVE_FINISH_MESSAGE, "");
 		const char* fullMessageString = fullMessage.c_str();
-		int ierr = MPI_Send(fullMessageString, MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+		int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
 	}
 
 	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
