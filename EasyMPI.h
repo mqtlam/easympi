@@ -21,10 +21,13 @@ namespace EasyMPI
 	 */
 	class EasyMPI
 	{
-	private:
+	public:
 		const static int MAX_MESSAGE_SIZE; //!< Maximum message size
 		const static int MAX_NUM_PROCESSES; //!< Maximum number of processes
+		const static string MASTER_FINISH_MESSAGE; //!< Master finished message
+		const static string SLAVE_FINISH_MESSAGE; //!< Slave finished message
 
+	private:
 		static int processID; //!< Process ID
 		static int numProcesses; //!< Number of processes
 		static bool initialized; //!< Whether called MPI initialized
@@ -63,9 +66,8 @@ namespace EasyMPI
 		 *
 		 * @param[in] commands List of commands to perform tasks
 		 * @param[in] messages List of corresponding messages for each command
-		 * @param[in] finishCommand String for telling every slave to finish after all tasks completed
 		 */
-		static void masterScheduleTasks(vector<string> commands, vector<string> messages, string finishCommand);
+		static void masterScheduleTasks(vector<string> commands, vector<string> messages);
 
 		/*!
 		 * Slave process waits for task commands from master.
@@ -74,6 +76,11 @@ namespace EasyMPI
 		 * @param[out] message String containing message for command
 		 */
 		static void slaveWaitForTasks(string& command, string& message);
+
+		/*!
+		 * Slave process tells master that it is finished with the recent task.
+		 */
+		static void slaveFinishedTask();
 
 		/*!
 		 * All processes must reach this point before continuing.

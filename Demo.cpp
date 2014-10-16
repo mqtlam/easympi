@@ -38,15 +38,12 @@ void masterDemo()
 
 	// demo commands
 	commands.push_back("DEMO1");
-	messages.push_back("message for demo1");
+	messages.push_back("message1");
 	commands.push_back("DEMO2");
-	messages.push_back("message for demo2");
-
-	// define finish command
-	std::string finishCommand = "FINISHDEMO";
+	messages.push_back("message2");
 
 	// schedule tasks
-	EasyMPI::EasyMPI::masterScheduleTasks(commands, messages, finishCommand);
+	EasyMPI::EasyMPI::masterScheduleTasks(commands, messages);
 }
 
 void slaveDemo()
@@ -66,18 +63,31 @@ void slaveDemo()
 		{
 			std::cout << "Got DEMO1 command on process " << EasyMPI::EasyMPI::getProcessID() 
 				<< " with message: " << message << std::endl;
+
+			//
 			// do stuff like call another function
+			//
+
+			// declare finished
+			EasyMPI::EasyMPI::slaveFinishedTask();
 		}
 		else if (command.compare("DEMO2") == 0)
 		{
 			std::cout << "Got DEMO2 command on process " << EasyMPI::EasyMPI::getProcessID() 
 				<< " with message: " << message << std::endl;
+
+			//
 			// do stuff like call another function
+			//
+
+			// declare finished
+			EasyMPI::EasyMPI::slaveFinishedTask();
 		}
-		else if (command.compare("FINISHDEMO") == 0)
+		else if (command.compare(EasyMPI::EasyMPI::MASTER_FINISH_MESSAGE) == 0)
 		{
-			std::cout << "Got the FINISH command on process " << EasyMPI::EasyMPI::getProcessID()
+			std::cout << "Got the master finish command on process " << EasyMPI::EasyMPI::getProcessID()
 				<< ". Exiting slave loop..." << std::endl;
+
 			break;
 		}
 		else
