@@ -417,7 +417,7 @@ namespace EasyMPI
 			// tell each slave to continue
 			for (int j = 1; j < numProcesses; j++)
 			{
-				cout << "Master is sending slave process [" << j << "] the " << MASTERBROADCASTMSG << " message to continue..." << endl;
+				cout << "Master is sending slave process [" << j << "/" << numProcesses << "] the " << MASTERBROADCASTMSG << " message to continue..." << endl;
 				int ierr = MPI_Send(const_cast<char*>(MASTERBROADCASTMSG), MASTERBROADCASTMSG_SIZE, MPI_CHAR, j, 0, MPI_COMM_WORLD);
 			}
 
