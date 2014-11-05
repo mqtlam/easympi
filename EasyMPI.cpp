@@ -6,10 +6,12 @@
 
 namespace EasyMPI
 {
+	/*** EasyMPI ***/
+
 	const int EasyMPI::MAX_MESSAGE_SIZE = 128;
 	const int EasyMPI::MAX_NUM_PROCESSES = 512;
-	const string EasyMPI::MASTER_FINISH_MESSAGE = "MASTERFINISHEDALLTASKS";
-	const string EasyMPI::SLAVE_FINISH_MESSAGE = "SLAVEFINISHEDTASK";
+	const string EasyMPI::MASTER_FINISH_COMMAND = "MASTERFINISHEDALLTASKS";
+	const string EasyMPI::SLAVE_FINISH_COMMAND = "SLAVEFINISHEDTASK";
 
 	int EasyMPI::processID = -1;
 	int EasyMPI::numProcesses = 0;
@@ -41,9 +43,6 @@ namespace EasyMPI
 
 	void EasyMPI::finalize()
 	{
-		// synchronize
-		//synchronize("FINALSLAVEMSG", "FINALMASTERMSG");
-
 		MPI_Finalize();
 		EasyMPI::finalized = true;
 	}
@@ -79,10 +78,10 @@ namespace EasyMPI
 		return EasyMPI::mpiStatus;
 	}
 
-	void EasyMPI::masterScheduleTasks(vector<string> commands, vector<string> messages)
+	void EasyMPI::masterScheduleTasks(vector<Task> taskList)
 	{
 		char recvbuff[MAX_MESSAGE_SIZE];
-		const int numTasks = commands.size();
+		const int numTasks = taskList.size();
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
 
@@ -90,12 +89,6 @@ namespace EasyMPI
 		{
 			cerr << "Cannot run master-slave with one process!" << endl;
 			return;
-		}
-
-		if (commands.size() != messages.size())
-		{
-			cerr << "Commands size does not equal messages size." << endl;
-			abortMPI(1);
 		}
 
 		if (numTasks == 0)
@@ -139,7 +132,7 @@ namespace EasyMPI
 
 				// assign task to available process by sending message to slave
 				cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
-				string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
+				string fullMessage = Task::constructFullMessage(taskList[taskID]);
 				const char* fullMessageString = fullMessage.c_str();
 				int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 
@@ -166,16 +159,16 @@ namespace EasyMPI
 				
 					// process full message into command and message components
 					string fullMessage = recvbuff;
-					string command;
-					string message;
-					bool success = parseFullMessage(fullMessage, command, message);
+					Task task = Task::parseFullMessage(fullMessage);
+					string command = task.getCommand();
+					string message = task.getParameters();
 
 					// check if correct (slave finish) message
 					const int commandSize = command.length();
 					bool correctMessage = true;
 					for (int i = 0; i < commandSize; i++)
 					{
-						if (command.at(i) != SLAVE_FINISH_MESSAGE.at(i))
+						if (command.at(i) != SLAVE_FINISH_COMMAND.at(i))
 						{
 							correctMessage = false;
 							break;
@@ -216,7 +209,7 @@ namespace EasyMPI
 
 							// assign task to available process by sending message to slave
 							cout << "Master is assigning task to slave [" << slaveID << "/" << numProcesses << "]." << endl;
-							string fullMessage = constructFullMessage(commands[taskID], messages[taskID]);
+							string fullMessage = Task::constructFullMessage(taskList[taskID]);
 							const char* fullMessageString = fullMessage.c_str();
 							int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 
@@ -250,19 +243,21 @@ namespace EasyMPI
 		for (int slaveID = 1; slaveID < getNumProcesses(); slaveID++)
 		{
 			cout << "Master is telling slave [" << slaveID << "/" << numProcesses << "] that all tasks are done." << endl;
-			string fullMessage = constructFullMessage(MASTER_FINISH_MESSAGE, "");
+			string fullMessage = Task::constructFullMessage(Task(MASTER_FINISH_COMMAND));
 			const char* fullMessageString = fullMessage.c_str();
 			int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, slaveID, 0, MPI_COMM_WORLD);
 		}
 	}
 
-	void EasyMPI::slaveWaitForTasks(string& command, string& message)
+	Task EasyMPI::slaveWaitForTasks()
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
 		
+		Task task;
+
 		if (numProcesses == 1)
-			return;
+			return task;
 		
 		char recvbuff[MAX_MESSAGE_SIZE];
 
@@ -275,16 +270,22 @@ namespace EasyMPI
 
 			// process full message into command and message components
 			string fullMessage = recvbuff;
-			bool success = parseFullMessage(fullMessage, command, message);
+			task = Task::parseFullMessage(fullMessage);
 
-			if (success)
+			if (!task.isEmpty())
 			{
 				cout << "Slave [" << rank << "/" << numProcesses << "]" << " got the command '" 
-					<< command << "' and message '" << message << "' from master." << endl;
+					<< task.getCommand() << "' and parameters '" << task.getParameters() << "' from master." << endl;
 
 				break;
 			}
+			else
+			{
+				cout << "Got empty task!" << endl;
+			}
 		}
+
+		return task;
 	}
 
 	void EasyMPI::slaveFinishedTask()
@@ -297,7 +298,7 @@ namespace EasyMPI
 
 		// send master the finished message
 		cout << "Slave [" << rank << "/" << numProcesses << "] is telling master it has finished a task." << endl;
-		string fullMessage = constructFullMessage(SLAVE_FINISH_MESSAGE, "");
+		string fullMessage = Task::constructFullMessage(Task(SLAVE_FINISH_COMMAND));
 		const char* fullMessageString = fullMessage.c_str();
 		int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
 	}
@@ -454,8 +455,48 @@ namespace EasyMPI
 		}
 	}
 
-	string EasyMPI::constructFullMessage(string command, string message)
+
+
+	/*** Command ***/
+	
+	Task::Task()
 	{
+		this->command = "";
+		this->parameters = "";
+	}
+
+	Task::Task(string command)
+	{
+		this->command = command;
+		this->parameters = "";
+	}
+
+	Task::Task(string command, string parameters)
+	{
+		this->command = command;
+		this->parameters = parameters;
+	}
+
+	string Task::getCommand() const
+	{
+		return this->command;
+	}
+
+	string Task::getParameters() const
+	{
+		return this->parameters;
+	}
+
+	bool Task::isEmpty() const
+	{
+		return this->command.compare("") == 0 && this->parameters.compare("");
+	}
+
+	string Task::constructFullMessage(Task task)
+	{
+		string command = task.getCommand();
+		string message = task.getParameters();
+
 		// size<commandstring;messagestring>XXX...
 
 		// sanity check
@@ -463,13 +504,13 @@ namespace EasyMPI
 		if (foundSemicolon1 != std::string::npos)
 		{
 			cerr << "command cannot contain a semicolon!";
-			abortMPI(1);
+			EasyMPI::abortMPI(1);
 		}
 		size_t foundSemicolon2 = message.find(";");
 		if (foundSemicolon2 != std::string::npos)
 		{
 			cerr << "message cannot contain a semicolon!";
-			abortMPI(1);
+			EasyMPI::abortMPI(1);
 		}
 
 		// calculate size of full message
@@ -477,10 +518,10 @@ namespace EasyMPI
 		int messageLength = message.length();
 		int size = 3 + 1 + commandLength + 1 + messageLength + 1;
 
-		if (size > MAX_MESSAGE_SIZE)
+		if (size > EasyMPI::MAX_MESSAGE_SIZE)
 		{
 			cerr << "Message length exceeds max message size!" << endl;
-			abortMPI(1);
+			EasyMPI::abortMPI(1);
 		}
 
 		// convert size to string
@@ -491,15 +532,19 @@ namespace EasyMPI
 		stringstream ss;
 		ss << sizeSS.str() << "<" << command << ";" << message << ">";
 		stringstream fullMessageSS;
-		fullMessageSS << std::left << setfill('X') << setw(MAX_MESSAGE_SIZE) << ss.str();
+		fullMessageSS << std::left << setfill('X') << setw(EasyMPI::MAX_MESSAGE_SIZE) << ss.str();
 		
 		//cout << "Full message constructed: '" << fullMessageSS.str() << "'" << endl;
 
 		return fullMessageSS.str();
 	}
 
-	bool EasyMPI::parseFullMessage(string fullMessage, string& command, string& message)
+	Task Task::parseFullMessage(string fullMessage)
 	{
+		string command;
+		string message;
+		Task task;
+
 		// size<commandstring;messagestring>XXX...
 
 		// get full message size
@@ -508,7 +553,9 @@ namespace EasyMPI
 
 		// some sanity check
 		if (fullMessage.at(3) != '<' || fullMessage.at(messageSize-1) != '>')
-			return false;
+		{
+			cerr << "The message received is not a valid message." << endl;
+		}
 
 		// get content between < and >
 		string line = fullMessage.substr(4, messageSize-5);
@@ -517,10 +564,11 @@ namespace EasyMPI
 		stringstream ss(line);
 		getline(ss, command, ';');
 		getline(ss, message, ';');
+		task = Task(command, message);
 
 		//cout << "Command parsed: '" << command << "'" << endl;
 		//cout << "Message parsed: '" << message << "'" << endl;
 
-		return true;
+		return task;
 	}
 }

@@ -10,6 +10,8 @@ namespace EasyMPI
 {
 	using namespace std;
 
+	class Task;
+
 	/*!
 	 * EasyMPI is a class that implements basic high level parallelism functionality. 
 	 * The current version uses a master-slave architecture where the slaves perform 
@@ -38,8 +40,8 @@ namespace EasyMPI
 	public:
 		const static int MAX_MESSAGE_SIZE; //!< Maximum message size
 		const static int MAX_NUM_PROCESSES; //!< Maximum number of processes
-		const static string MASTER_FINISH_MESSAGE; //!< Master finished message
-		const static string SLAVE_FINISH_MESSAGE; //!< Slave finished message
+		const static string MASTER_FINISH_COMMAND; //!< Master finished command
+		const static string SLAVE_FINISH_COMMAND; //!< Slave finished command
 
 	private:
 		static int processID; //!< Process ID
@@ -80,23 +82,20 @@ namespace EasyMPI
 		static MPI_Status* getMPIStatus();
 
 		/*!
-		 * Master process schedules tasks (command, message) to slaves.
+		 * Master process schedules tasks (command, parameters) to slaves.
 		 * Exits when all tasks have been completed.
 		 *
-		 * Commands and messages may not include the semicolon ';' symbol!
-		 *
-		 * @param[in] commands List of commands to perform tasks in parallel
-		 * @param[in] messages List of corresponding messages for each command
+		 * @param[in] taskList List of tasks to perform in parallel
 		 */
-		static void masterScheduleTasks(vector<string> commands, vector<string> messages);
+		static void masterScheduleTasks(vector<Task> tasksList);
 
 		/*!
-		 * Slave process waits for task commands from master.
+		 * Slave process waits for a task from master. 
+		 * This function blocks until a task comes from the master.
 		 *
-		 * @param[out] command String containing command
-		 * @param[out] message String containing message for command
+		 * @return Task received from master
 		 */
-		static void slaveWaitForTasks(string& command, string& message);
+		static Task slaveWaitForTasks();
 
 		/*!
 		 * Slave process tells master that it is finished with the recent task.
@@ -111,6 +110,7 @@ namespace EasyMPI
 		 */
 		static void synchronize(string slaveBroadcastMsg, string masterBroadcastMsg);
 
+	private:
 		/*!
 		 * The master waits until all slave processes 
 		 * reach this point before continuing. 
@@ -132,28 +132,73 @@ namespace EasyMPI
 		 * @param[in] masterBroadcastMsg Message to broadcast to master
 		 */
 		static void slavesWait(string masterBroadcastMsg);
+	};
 
-	private:
+	/*!
+	 * The Task class encapsulates a command that is sent and received as messages.
+	 * A Task consists of a command string and an optional parameter string, where the user can 
+	 * add any additional information for the command in the parameter string.
+	 *
+	 * The Task class also has utilities to convert to a message and back.
+	 *
+	 */
+	class Task
+	{
+	protected:
+		string command; //!< Command string
+		string parameters; //!< Optional string of command parameters
+
+	public:
+		/*!
+		 * Construct an empty task.
+		 * Do not use the empty task.
+		 */
+		Task();
+
+		/*!
+		 * Construct a task. 
+		 * Commands may not include the semicolon ';' symbol!
+		 */
+		Task(string command);
+		
+		/*!
+		 * Construct a task. 
+		 * Commands and parameters may not include the semicolon ';' symbol!
+		 */
+		Task(string command, string parameters);
+
+		/*!
+		 * Returns the command.
+		 */
+		string getCommand() const;
+
+		/*!
+		 * Returns the parameters.
+		 */
+		string getParameters() const;
+
+		/*!
+		 * Returns if the command and parameters are empty strings.
+		 */
+		bool isEmpty() const;
+
 		/*!
 		 * Construct full message.
-		 * size<commandstring;messagestring>
+		 * size<commandstring;parameterstring>
 		 *
-		 * @param[in] command Command string
-		 * @param[in] message Message string
+		 * @param[in] task Task object
 		 * @return Full message
 		 */
-		static string constructFullMessage(string command, string message);
+		static string constructFullMessage(Task task);
 
 		/*!
 		 * Parse full message.
-		 * size<commandstring;messagestring>
+		 * size<commandstring;parameterstring>
 		 *
 		 * @param[in] fullMessage Full message
-		 * @param[out] command Command string
-		 * @param[out] message Message string
-		 * @return true if message parsed successfully
+		 * @return Task object
 		 */
-		static bool parseFullMessage(string fullMessage, string& command, string& message);
+		static Task parseFullMessage(string fullMessage);
 	};
 }
 
