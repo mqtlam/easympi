@@ -9,7 +9,7 @@ Please see Demo.cpp for a quick start example. There are two tasks. The master i
 
 The function initialize() must be called at the beginning of the program and finalize() must be called right when the program ends.
 
-The master process needs a set of commands and corresponding messages to send to the slave. A command is a string that signals a particular task. A message is a string that attaches additional information to that command. For example, one can create a command "PROCESSIMAGE" and message "123" to tell the slave to process image 123.
+The master process needs a list of tasks to send to the slave. A task is defined as a command string and a string of parameters. The parameter string is optional and attaches additional information to a command. For example, one can create a task with command "PROCESSIMAGE" and message "123" to tell the slave to process image 123. Note: commands and parameter strings may not contain the ';' symbol!
 
 The call to the master process scheduler is masterScheduleTasks(). The slave receives these commands and processes them accordingly. The function to wait for a message from master is slaveWaitForTasks(). The function to signal to the master that the slave is finished is slaveFinishedTask().
 
