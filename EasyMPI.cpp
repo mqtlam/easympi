@@ -474,7 +474,7 @@ namespace EasyMPI
 
 
 
-	/*** Command ***/
+	/*** Task ***/
 	
 	Task::Task()
 	{
@@ -550,8 +550,6 @@ namespace EasyMPI
 		ss << sizeSS.str() << "<" << command << ";" << message << ">";
 		stringstream fullMessageSS;
 		fullMessageSS << std::left << setfill('X') << setw(MPIScheduler::MAX_MESSAGE_SIZE) << ss.str();
-		
-		//cout << "Full message constructed: '" << fullMessageSS.str() << "'" << endl;
 
 		return fullMessageSS.str();
 	}
@@ -582,9 +580,6 @@ namespace EasyMPI
 		getline(ss, command, ';');
 		getline(ss, message, ';');
 		task = Task(command, message);
-
-		//cout << "Command parsed: '" << command << "'" << endl;
-		//cout << "Message parsed: '" << message << "'" << endl;
 
 		return task;
 	}
