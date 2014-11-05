@@ -42,6 +42,8 @@ namespace EasyMPI
 		const static int MAX_NUM_PROCESSES; //!< Maximum number of processes
 		const static string MASTER_FINISH_COMMAND; //!< Master finished command
 		const static string SLAVE_FINISH_COMMAND; //!< Slave finished command
+		const static string SYNCHRONIZATION_MASTER_MESSAGE; //!< Master synchronization message
+		const static string SYNCHRONIZATION_SLAVE_MESSAGE; //!< Slave synchronization message
 
 	private:
 		static int processID; //!< Process ID
@@ -49,6 +51,7 @@ namespace EasyMPI
 		static bool initialized; //!< Whether called MPI initialized
 		static bool finalized; //!< Whether called MPI finalized
 		static MPI_Status* mpiStatus; //!< MPI Status object
+		static int syncCounter; //!< counter of synchronization calls
 
 	public:
 		/*!
@@ -103,20 +106,28 @@ namespace EasyMPI
 		static void slaveFinishedTask();
 
 		/*!
+		 * All processes must reach this point before continuing. 
+		 * Useful command if need to synchronize all processes.
+		 */
+		static void synchronize();
+
+	private:
+		/*!
 		 * All processes must reach this point before continuing.
+		 *
+		 * DEPRECATED for API use.
 		 *
 		 * @param[in] slaveBroadcastMsg Message to broadcast to slaves
 		 * @param[in] masterBroadcastMsg Message to broadcast to master
 		 */
 		static void synchronize(string slaveBroadcastMsg, string masterBroadcastMsg);
 
-	private:
 		/*!
 		 * The master waits until all slave processes 
 		 * reach this point before continuing. 
 		 * Slave processes continue past this point.
 		 *
-		 * DEPRECATED.
+		 * DEPRECATED for API use.
 		 *
 		 * @param[in] slaveBroadcastMsg Message to broadcast to slaves
 		 */
@@ -127,7 +138,7 @@ namespace EasyMPI
 		 * reaches this point before continuing.
 		 * The master process continues past this point.
 		 *
-		 * DEPRECATED.
+		 * DEPRECATED for API use.
 		 *
 		 * @param[in] masterBroadcastMsg Message to broadcast to master
 		 */

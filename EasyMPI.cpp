@@ -12,11 +12,14 @@ namespace EasyMPI
 	const int MPIScheduler::MAX_NUM_PROCESSES = 512;
 	const string MPIScheduler::MASTER_FINISH_COMMAND = "MASTERFINISHEDALLTASKS";
 	const string MPIScheduler::SLAVE_FINISH_COMMAND = "SLAVEFINISHEDTASK";
+	const string MPIScheduler::SYNCHRONIZATION_MASTER_MESSAGE = "MASTERSYNC";
+	const string MPIScheduler::SYNCHRONIZATION_SLAVE_MESSAGE = "SLAVESYNC";
 
 	int MPIScheduler::processID = -1;
 	int MPIScheduler::numProcesses = 0;
 	bool MPIScheduler::initialized = false;
 	bool MPIScheduler::finalized = false;
+	int MPIScheduler::syncCounter = 0;
 	MPI_Status* MPIScheduler::mpiStatus = NULL;
 
 	void MPIScheduler::initialize(int argc, char* argv[])
@@ -39,6 +42,7 @@ namespace EasyMPI
 		MPIScheduler::numProcesses = size;
 		MPIScheduler::mpiStatus = new MPI_Status();
 		MPIScheduler::initialized = true;
+		MPIScheduler::syncCounter = 0;
 	}
 
 	void MPIScheduler::finalize()
@@ -301,6 +305,19 @@ namespace EasyMPI
 		string fullMessage = Task::constructFullMessage(Task(SLAVE_FINISH_COMMAND));
 		const char* fullMessageString = fullMessage.c_str();
 		int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+	}
+
+	void MPIScheduler::synchronize()
+	{
+		stringstream ssMasterMessage;
+		ssMasterMessage << MPIScheduler::SYNCHRONIZATION_MASTER_MESSAGE << MPIScheduler::syncCounter;
+
+		stringstream ssSlaveMessage;
+		ssSlaveMessage << MPIScheduler::SYNCHRONIZATION_SLAVE_MESSAGE << MPIScheduler::syncCounter;
+
+		synchronize(ssMasterMessage.str(), ssSlaveMessage.str());
+
+		MPIScheduler::syncCounter++;
 	}
 
 	void MPIScheduler::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
