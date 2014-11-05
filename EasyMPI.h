@@ -13,7 +13,7 @@ namespace EasyMPI
 	class Task;
 
 	/*!
-	 * EasyMPI is a class that implements basic high level parallelism functionality. 
+	 * MPIScheduler is a class that implements basic high level parallelism functionality. 
 	 * The current version uses a master-slave architecture where the slaves perform 
 	 * parallel tasks while the master is responsible for scheduling tasks to the slaves.
 	 *
@@ -35,7 +35,7 @@ namespace EasyMPI
 	 * Simply include the header file in your program to use these functions.
 	 * Make sure MPI is installed on your system.
 	 */
-	class EasyMPI
+	class MPIScheduler
 	{
 	public:
 		const static int MAX_MESSAGE_SIZE; //!< Maximum message size

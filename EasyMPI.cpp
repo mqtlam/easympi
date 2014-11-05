@@ -8,18 +8,18 @@ namespace EasyMPI
 {
 	/*** EasyMPI ***/
 
-	const int EasyMPI::MAX_MESSAGE_SIZE = 128;
-	const int EasyMPI::MAX_NUM_PROCESSES = 512;
-	const string EasyMPI::MASTER_FINISH_COMMAND = "MASTERFINISHEDALLTASKS";
-	const string EasyMPI::SLAVE_FINISH_COMMAND = "SLAVEFINISHEDTASK";
+	const int MPIScheduler::MAX_MESSAGE_SIZE = 128;
+	const int MPIScheduler::MAX_NUM_PROCESSES = 512;
+	const string MPIScheduler::MASTER_FINISH_COMMAND = "MASTERFINISHEDALLTASKS";
+	const string MPIScheduler::SLAVE_FINISH_COMMAND = "SLAVEFINISHEDTASK";
 
-	int EasyMPI::processID = -1;
-	int EasyMPI::numProcesses = 0;
-	bool EasyMPI::initialized = false;
-	bool EasyMPI::finalized = false;
-	MPI_Status* EasyMPI::mpiStatus = NULL;
+	int MPIScheduler::processID = -1;
+	int MPIScheduler::numProcesses = 0;
+	bool MPIScheduler::initialized = false;
+	bool MPIScheduler::finalized = false;
+	MPI_Status* MPIScheduler::mpiStatus = NULL;
 
-	void EasyMPI::initialize(int argc, char* argv[])
+	void MPIScheduler::initialize(int argc, char* argv[])
 	{
 		// initialize MPI
 		int rank, size;
@@ -35,21 +35,21 @@ namespace EasyMPI
 		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 		// store
-		EasyMPI::processID = rank;
-		EasyMPI::numProcesses = size;
-		EasyMPI::mpiStatus = new MPI_Status();
-		EasyMPI::initialized = true;
+		MPIScheduler::processID = rank;
+		MPIScheduler::numProcesses = size;
+		MPIScheduler::mpiStatus = new MPI_Status();
+		MPIScheduler::initialized = true;
 	}
 
-	void EasyMPI::finalize()
+	void MPIScheduler::finalize()
 	{
 		MPI_Finalize();
-		EasyMPI::finalized = true;
+		MPIScheduler::finalized = true;
 	}
 
-	void EasyMPI::abortMPI(int errcode)
+	void MPIScheduler::abortMPI(int errcode)
 	{
-		if (EasyMPI::initialized)
+		if (MPIScheduler::initialized)
 		{
 			const int numProcesses = getNumProcesses();
 			const int rank = getProcessID();
@@ -63,22 +63,22 @@ namespace EasyMPI
 		}
 	}
 
-	int EasyMPI::getProcessID()
+	int MPIScheduler::getProcessID()
 	{
-		return EasyMPI::processID;
+		return MPIScheduler::processID;
 	}
 
-	int EasyMPI::getNumProcesses()
+	int MPIScheduler::getNumProcesses()
 	{
-		return EasyMPI::numProcesses;
+		return MPIScheduler::numProcesses;
 	}
 
-	MPI_Status* EasyMPI::getMPIStatus()
+	MPI_Status* MPIScheduler::getMPIStatus()
 	{
-		return EasyMPI::mpiStatus;
+		return MPIScheduler::mpiStatus;
 	}
 
-	void EasyMPI::masterScheduleTasks(vector<Task> taskList)
+	void MPIScheduler::masterScheduleTasks(vector<Task> taskList)
 	{
 		char recvbuff[MAX_MESSAGE_SIZE];
 		const int numTasks = taskList.size();
@@ -144,18 +144,18 @@ namespace EasyMPI
 			while (true)
 			{
 				int msgFlag = 0;
-				MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, EasyMPI::mpiStatus);
+				MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, MPIScheduler::mpiStatus);
 
 				// if a messsage is available
 				if (msgFlag)
 				{
 					// get the message tag and especially the source
-					int messageID = (*EasyMPI::mpiStatus).MPI_TAG;
-					int messageSource = (*EasyMPI::mpiStatus).MPI_SOURCE;
+					int messageID = (*MPIScheduler::mpiStatus).MPI_TAG;
+					int messageSource = (*MPIScheduler::mpiStatus).MPI_SOURCE;
 					cout << "A message from process [" << messageSource << "/" << numProcesses << "]." << endl;
 
 					// receive the message into the buffer and check if it is the correct (slave finish) command
-					int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
+					int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
 				
 					// process full message into command and message components
 					string fullMessage = recvbuff;
@@ -249,7 +249,7 @@ namespace EasyMPI
 		}
 	}
 
-	Task EasyMPI::slaveWaitForTasks()
+	Task MPIScheduler::slaveWaitForTasks()
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
@@ -266,7 +266,7 @@ namespace EasyMPI
 		while (true)
 		{
 			// wait for message from master
-			int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
+			int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
 
 			// process full message into command and message components
 			string fullMessage = recvbuff;
@@ -288,7 +288,7 @@ namespace EasyMPI
 		return task;
 	}
 
-	void EasyMPI::slaveFinishedTask()
+	void MPIScheduler::slaveFinishedTask()
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
@@ -303,13 +303,13 @@ namespace EasyMPI
 		int ierr = MPI_Send(const_cast<char*>(fullMessageString), MAX_MESSAGE_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
 	}
 
-	void EasyMPI::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
+	void MPIScheduler::synchronize(string slaveBroadcastMsg, string masterBroadcastMsg)
 	{
 		masterWait(slaveBroadcastMsg);
 		slavesWait(masterBroadcastMsg);
 	}
 
-	void EasyMPI::masterWait(string slaveBroadcastMsg)
+	void MPIScheduler::masterWait(string slaveBroadcastMsg)
 	{
 		// receive buffer
 		char recvbuff[MAX_MESSAGE_SIZE];
@@ -338,18 +338,18 @@ namespace EasyMPI
 					break;
 
 				int msgFlag = 0;
-				MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, EasyMPI::mpiStatus);
+				MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msgFlag, MPIScheduler::mpiStatus);
 
 				// if a messsage is available
 				if (msgFlag)
 				{
 					// get the message tag and especially source
-					int messageID = (*EasyMPI::mpiStatus).MPI_TAG;
-					int messageSource = (*EasyMPI::mpiStatus).MPI_SOURCE;
+					int messageID = (*MPIScheduler::mpiStatus).MPI_TAG;
+					int messageSource = (*MPIScheduler::mpiStatus).MPI_SOURCE;
 					cout << "A message from process [" << messageSource << "/" << numProcesses << "]." << endl;
 
 					// receive the message into the buffer and check if it is the correct command
-					int ierr = MPI_Recv(recvbuff, SLAVEBROADCASTMSG_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
+					int ierr = MPI_Recv(recvbuff, SLAVEBROADCASTMSG_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
 					
 					// check if correct message
 					bool correctMessage = true;
@@ -401,7 +401,7 @@ namespace EasyMPI
 		}
 	}
 
-	void EasyMPI::slavesWait(string masterBroadcastMsg)
+	void MPIScheduler::slavesWait(string masterBroadcastMsg)
 	{
 		// receive buffer
 		char recvbuff[MAX_MESSAGE_SIZE];
@@ -431,7 +431,7 @@ namespace EasyMPI
 			// now wait until master gives the continue signal
 			while (true)
 			{
-				int ierr = MPI_Recv(recvbuff, MASTERBROADCASTMSG_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, EasyMPI::mpiStatus);
+				int ierr = MPI_Recv(recvbuff, MASTERBROADCASTMSG_SIZE, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
 
 				// check if correct message
 				bool correctMessage = true;
@@ -504,13 +504,13 @@ namespace EasyMPI
 		if (foundSemicolon1 != std::string::npos)
 		{
 			cerr << "command cannot contain a semicolon!";
-			EasyMPI::abortMPI(1);
+			MPIScheduler::abortMPI(1);
 		}
 		size_t foundSemicolon2 = message.find(";");
 		if (foundSemicolon2 != std::string::npos)
 		{
 			cerr << "message cannot contain a semicolon!";
-			EasyMPI::abortMPI(1);
+			MPIScheduler::abortMPI(1);
 		}
 
 		// calculate size of full message
@@ -518,10 +518,10 @@ namespace EasyMPI
 		int messageLength = message.length();
 		int size = 3 + 1 + commandLength + 1 + messageLength + 1;
 
-		if (size > EasyMPI::MAX_MESSAGE_SIZE)
+		if (size > MPIScheduler::MAX_MESSAGE_SIZE)
 		{
 			cerr << "Message length exceeds max message size!" << endl;
-			EasyMPI::abortMPI(1);
+			MPIScheduler::abortMPI(1);
 		}
 
 		// convert size to string
@@ -532,7 +532,7 @@ namespace EasyMPI
 		stringstream ss;
 		ss << sizeSS.str() << "<" << command << ";" << message << ">";
 		stringstream fullMessageSS;
-		fullMessageSS << std::left << setfill('X') << setw(EasyMPI::MAX_MESSAGE_SIZE) << ss.str();
+		fullMessageSS << std::left << setfill('X') << setw(MPIScheduler::MAX_MESSAGE_SIZE) << ss.str();
 		
 		//cout << "Full message constructed: '" << fullMessageSS.str() << "'" << endl;
 

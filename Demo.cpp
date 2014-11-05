@@ -7,11 +7,11 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList);
 int main(int argc, char* argv[])
 {
 	// initialize MPI: MUST CALL THIS BEFORE ANYTHING ELSE IN main()
-	EasyMPI::EasyMPI::initialize(argc, argv);
+	EasyMPI::MPIScheduler::initialize(argc, argv);
 
 	// print rank and number of processes
-	std::cout << "Rank=" << EasyMPI::EasyMPI::getProcessID() << std::endl;
-	std::cout << "Size=" << EasyMPI::EasyMPI::getNumProcesses() << std::endl;
+	std::cout << "Rank=" << EasyMPI::MPIScheduler::getProcessID() << std::endl;
+	std::cout << "Size=" << EasyMPI::MPIScheduler::getNumProcesses() << std::endl;
 
 	// declare demo commands and their parameters
 	std::vector<EasyMPI::Task> taskList;
@@ -20,10 +20,10 @@ int main(int argc, char* argv[])
 
 	// begin master/slave demo
 	// this also handles the case when number of processes is 1
-	if (EasyMPI::EasyMPI::getProcessID() == 0 && EasyMPI::EasyMPI::getNumProcesses() > 1)
+	if (EasyMPI::MPIScheduler::getProcessID() == 0 && EasyMPI::MPIScheduler::getNumProcesses() > 1)
 	{
 		// run scheduler if master
-		EasyMPI::EasyMPI::masterScheduleTasks(taskList);
+		EasyMPI::MPIScheduler::masterScheduleTasks(taskList);
 	}
 	else
 	{
@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
 	}
 
 	// finalize: anything called after this cannot use MPI
-	EasyMPI::EasyMPI::finalize();
+	EasyMPI::MPIScheduler::finalize();
 
 	return 0;
 }
@@ -50,9 +50,9 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 
 		// wait for task if more than one process
 		// otherwise if only one process, then perform task on master process
-		if (EasyMPI::EasyMPI::getNumProcesses() > 1)
+		if (EasyMPI::MPIScheduler::getNumProcesses() > 1)
 		{
-			task = EasyMPI::EasyMPI::slaveWaitForTasks();
+			task = EasyMPI::MPIScheduler::slaveWaitForTasks();
 		}
 		else
 		{
@@ -68,7 +68,7 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 		// define branches here to perform task depending on command
 		if (task.getCommand().compare("DEMO1") == 0)
 		{
-			std::cout << "Got DEMO1 command on process " << EasyMPI::EasyMPI::getProcessID() 
+			std::cout << "Got DEMO1 command on process " << EasyMPI::MPIScheduler::getProcessID() 
 				<< " with parameters: " << task.getParameters() << std::endl;
 
 			//
@@ -76,11 +76,11 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 			//
 
 			// declare finished
-			EasyMPI::EasyMPI::slaveFinishedTask();
+			EasyMPI::MPIScheduler::slaveFinishedTask();
 		}
 		else if (task.getCommand().compare("DEMO2") == 0)
 		{
-			std::cout << "Got DEMO2 command on process " << EasyMPI::EasyMPI::getProcessID() 
+			std::cout << "Got DEMO2 command on process " << EasyMPI::MPIScheduler::getProcessID() 
 				<< " with parameters: " << task.getParameters() << std::endl;
 
 			//
@@ -88,11 +88,11 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 			//
 
 			// declare finished
-			EasyMPI::EasyMPI::slaveFinishedTask();
+			EasyMPI::MPIScheduler::slaveFinishedTask();
 		}
-		else if (task.getCommand().compare(EasyMPI::EasyMPI::MASTER_FINISH_COMMAND) == 0)
+		else if (task.getCommand().compare(EasyMPI::MPIScheduler::MASTER_FINISH_COMMAND) == 0)
 		{
-			std::cout << "Got the master finish command on process " << EasyMPI::EasyMPI::getProcessID()
+			std::cout << "Got the master finish command on process " << EasyMPI::MPIScheduler::getProcessID()
 				<< ". Exiting slave loop..." << std::endl;
 
 			break;
