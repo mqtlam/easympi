@@ -1,6 +1,7 @@
 #include "EasyMPI.h"
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 void slaveDemo(std::vector<EasyMPI::Task> taskList);
 
