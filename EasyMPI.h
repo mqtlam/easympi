@@ -10,7 +10,10 @@ namespace EasyMPI
 {
 	using namespace std;
 
+	// Forward class declarations
+	class MPIScheduler;
 	class Task;
+	class ParameterTools;
 
 	/*!
 	 * MPIScheduler is a class that implements basic high level parallelism functionality. 
@@ -29,10 +32,10 @@ namespace EasyMPI
 	 *	getProcessID()
 	 *	getNumProcesses()
 	 *
-	 * Note that if the number of processes is 1, then this architecture fails.
-	 * Simply have logic to perform tasks with only one process.
+	 * Note that if the number of processes is 1, then this architecture fails. 
+	 * Simply have logic to perform tasks with only one process (included in Demo.cpp).
 	 *
-	 * Simply include the header file in your program to use these functions.
+	 * Simply include the header file in your program to use these functions. 
 	 * Make sure MPI is installed on your system.
 	 */
 	class MPIScheduler
@@ -155,6 +158,12 @@ namespace EasyMPI
 	 */
 	class Task
 	{
+	public:
+		const static char MESSAGE_DELIMITER; //!< Delimiter to delimit command and parameters
+		const static char MESSAGE_BEGIN_CHAR; //!< Begin message character
+		const static char MESSAGE_END_CHAR; //!< End message character
+		const static char MESSAGE_SIZE_NUM_CHARS; //!< Number of characters to represent size of message
+
 	protected:
 		string command; //!< Command string
 		string parameters; //!< Optional string of command parameters
@@ -162,19 +171,19 @@ namespace EasyMPI
 	public:
 		/*!
 		 * Construct an empty task.
-		 * Do not use the empty task.
+		 * Do not use the empty task!
 		 */
 		Task();
 
 		/*!
 		 * Construct a task. 
-		 * Commands may not include the semicolon ';' symbol!
+		 * Commands may not include the semicolon ';' (MESSAGE_DELIMITER) symbol!
 		 */
 		Task(string command);
 		
 		/*!
 		 * Construct a task. 
-		 * Commands and parameters may not include the semicolon ';' symbol!
+		 * Commands and parameters may not include the semicolon ';' (MESSAGE_DELIMITER) symbol!
 		 */
 		Task(string command, string parameters);
 
@@ -194,22 +203,53 @@ namespace EasyMPI
 		bool isEmpty() const;
 
 		/*!
-		 * Construct full message.
-		 * size<commandstring;parameterstring>
+		 * Construct message for message passing.
 		 *
 		 * @param[in] task Task object
-		 * @return Full message
+		 * @return Message string
 		 */
 		static string constructFullMessage(Task task);
 
 		/*!
-		 * Parse full message.
-		 * size<commandstring;parameterstring>
+		 * Parse message from message passing.
 		 *
-		 * @param[in] fullMessage Full message
+		 * @param[in] message Message string
 		 * @return Task object
 		 */
-		static Task parseFullMessage(string fullMessage);
+		static Task parseFullMessage(string message);
+	};
+
+	/*!
+	 * ParameterTools is a class that provides tools to parse and construct 
+	 * parameter strings used in the Task object.
+	 *
+	 * This is an optional class; it not required to use this class for 
+	 * handling parameters. This is especially true if the parameter 
+	 * is very simple or not even used.
+	 */
+	class ParameterTools
+	{
+	public:
+		const static char PARAMETER_DELIMITER; //!< Delimiter used in parsing
+
+	public:
+		/*!
+		 * Parse a parameter string into a list of parameters. 
+		 * Used after extracting the parameter list from the Task object.
+		 *
+		 * @param[in] parameterString String of parameters separated by a delimiter
+		 * @return List of parameters in the order parsed
+		 */
+		static vector<string> parseParameterString(string parameterString);
+
+		/*!
+		 * Construct parameter string from a list of parameters. 
+		 * Used before passing to Task object.
+		 *
+		 * @param[in] parameterList List of parameters
+		 * @return String of parameters separated by a delimiter
+		 */
+		static string constructParameterString(vector<string> parameterList);
 	};
 }
 

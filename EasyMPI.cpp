@@ -8,7 +8,7 @@ namespace EasyMPI
 {
 	/*** EasyMPI ***/
 
-	const int MPIScheduler::MAX_MESSAGE_SIZE = 128;
+	const int MPIScheduler::MAX_MESSAGE_SIZE = 128; // be careful setting this manually; need to check Task class too
 	const int MPIScheduler::MAX_NUM_PROCESSES = 512;
 	const string MPIScheduler::MASTER_FINISH_COMMAND = "MASTERFINISHEDALLTASKS";
 	const string MPIScheduler::SLAVE_FINISH_COMMAND = "SLAVEFINISHEDTASK";
@@ -160,7 +160,7 @@ namespace EasyMPI
 
 					// receive the message into the buffer and check if it is the correct (slave finish) command
 					int ierr = MPI_Recv(recvbuff, MAX_MESSAGE_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
-				
+
 					// process full message into command and message components
 					string fullMessage = recvbuff;
 					Task task = Task::parseFullMessage(fullMessage);
@@ -178,12 +178,12 @@ namespace EasyMPI
 							break;
 						}
 					}
-		
+
 					// if correct message, update state and check what else needs to be done
 					if (correctMessage)
 					{
 						cout << "Master received finished message from slave [" << messageSource << "/" << numProcesses << "]." << endl;
-					
+
 						// get completed task ID
 						int taskID = processTask[messageSource];
 
@@ -198,7 +198,7 @@ namespace EasyMPI
 						processTask[messageSource] = -1;
 						finishedTasks[taskID] = true;
 						availableProcesses.push(messageSource);
-					
+
 						// check if any other tasks need to be processed
 						// otherwise check all tasks are completed
 						if (!unassignedTasks.empty())
@@ -257,12 +257,12 @@ namespace EasyMPI
 	{
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
-		
+
 		Task task;
 
 		if (numProcesses == 1)
 			return task;
-		
+
 		char recvbuff[MAX_MESSAGE_SIZE];
 
 		// wait until get a message from master
@@ -332,7 +332,7 @@ namespace EasyMPI
 		char recvbuff[MAX_MESSAGE_SIZE];
 		const char* SLAVEBROADCASTMSG = slaveBroadcastMsg.c_str();
 		const int SLAVEBROADCASTMSG_SIZE = slaveBroadcastMsg.length();
-	
+
 		// master needs to wait here until all slaves reaches here
 		const int numProcesses = getNumProcesses();
 		const int rank = getProcessID();
@@ -367,7 +367,7 @@ namespace EasyMPI
 
 					// receive the message into the buffer and check if it is the correct command
 					int ierr = MPI_Recv(recvbuff, SLAVEBROADCASTMSG_SIZE, MPI_CHAR, messageSource, 0, MPI_COMM_WORLD, MPIScheduler::mpiStatus);
-					
+
 					// check if correct message
 					bool correctMessage = true;
 					for (int i = 0; i < SLAVEBROADCASTMSG_SIZE; i++)
@@ -378,7 +378,7 @@ namespace EasyMPI
 							break;
 						}
 					}
-					
+
 					if (correctMessage)
 					{
 						cout << "Received " << slaveBroadcastMsg << " message from process [" << messageSource << "/" << numProcesses << "]." << endl;
@@ -402,7 +402,7 @@ namespace EasyMPI
 					}
 				}
 			}
-		
+
 			// MASTER CAN DO STUFF HERE BEFORE SLAVES PROCEED
 
 			cout << "Master process [" << rank << "/" << numProcesses << "] has continued..." << endl;
@@ -475,7 +475,12 @@ namespace EasyMPI
 
 
 	/*** Task ***/
-	
+
+	const char Task::MESSAGE_DELIMITER = ';';
+	const char Task::MESSAGE_BEGIN_CHAR = '<';
+	const char Task::MESSAGE_END_CHAR = '>';
+	const char Task::MESSAGE_SIZE_NUM_CHARS = 3;
+
 	Task::Task()
 	{
 		this->command = "";
@@ -512,28 +517,29 @@ namespace EasyMPI
 	string Task::constructFullMessage(Task task)
 	{
 		string command = task.getCommand();
-		string message = task.getParameters();
+		string parameters = task.getParameters();
 
-		// size<commandstring;messagestring>XXX...
+		// size<commandstring;parameterstring>XXX...
+		// number of characters for size is MESSAGE_SIZE_NUM_CHARS
 
 		// sanity check
-		size_t foundSemicolon1 = command.find(";");
+		size_t foundSemicolon1 = command.find(MESSAGE_DELIMITER);
 		if (foundSemicolon1 != std::string::npos)
 		{
 			cerr << "command cannot contain a semicolon!";
 			MPIScheduler::abortMPI(1);
 		}
-		size_t foundSemicolon2 = message.find(";");
+		size_t foundSemicolon2 = parameters.find(MESSAGE_DELIMITER);
 		if (foundSemicolon2 != std::string::npos)
 		{
-			cerr << "message cannot contain a semicolon!";
+			cerr << "parameter string cannot contain a semicolon!";
 			MPIScheduler::abortMPI(1);
 		}
 
 		// calculate size of full message
 		int commandLength = command.length();
-		int messageLength = message.length();
-		int size = 3 + 1 + commandLength + 1 + messageLength + 1;
+		int messageLength = parameters.length();
+		int size = MESSAGE_SIZE_NUM_CHARS + 1 + commandLength + 1 + messageLength + 1;
 
 		if (size > MPIScheduler::MAX_MESSAGE_SIZE)
 		{
@@ -543,44 +549,99 @@ namespace EasyMPI
 
 		// convert size to string
 		stringstream sizeSS;
-		sizeSS << setfill('0') << setw(3) << size;
-		
+		sizeSS << setfill('0') << setw(MESSAGE_SIZE_NUM_CHARS) << size;
+
 		// construct full message
 		stringstream ss;
-		ss << sizeSS.str() << "<" << command << ";" << message << ">";
-		stringstream fullMessageSS;
-		fullMessageSS << std::left << setfill('X') << setw(MPIScheduler::MAX_MESSAGE_SIZE) << ss.str();
+		ss << sizeSS.str() << MESSAGE_BEGIN_CHAR << command << MESSAGE_DELIMITER << parameters << MESSAGE_END_CHAR;
+		stringstream messageSS;
+		messageSS << std::left << setfill('X') << setw(MPIScheduler::MAX_MESSAGE_SIZE) << ss.str();
 
-		return fullMessageSS.str();
+		return messageSS.str();
 	}
 
-	Task Task::parseFullMessage(string fullMessage)
+	Task Task::parseFullMessage(string message)
 	{
 		string command;
-		string message;
+		string parameters;
 		Task task;
 
-		// size<commandstring;messagestring>XXX...
+		// size<commandstring;parameterstring>XXX...
+		// number of characters for size is MESSAGE_SIZE_NUM_CHARS
 
 		// get full message size
-		string messageSizeString = fullMessage.substr(0, 3);
+		string messageSizeString = message.substr(0, MESSAGE_SIZE_NUM_CHARS);
 		int messageSize = atoi(messageSizeString.c_str());
 
 		// some sanity check
-		if (fullMessage.at(3) != '<' || fullMessage.at(messageSize-1) != '>')
+		if (message.at(MESSAGE_SIZE_NUM_CHARS) != MESSAGE_BEGIN_CHAR || message.at(messageSize-1) != MESSAGE_END_CHAR)
 		{
 			cerr << "The message received is not a valid message." << endl;
 		}
 
-		// get content between < and >
-		string line = fullMessage.substr(4, messageSize-5);
+		// get content between begin and end characters
+		string line = message.substr(MESSAGE_SIZE_NUM_CHARS+1, messageSize-(MESSAGE_SIZE_NUM_CHARS+2));
 
 		// parse content to get command and message
 		stringstream ss(line);
-		getline(ss, command, ';');
-		getline(ss, message, ';');
-		task = Task(command, message);
+		getline(ss, command, MESSAGE_DELIMITER);
+		getline(ss, parameters, MESSAGE_DELIMITER);
+		task = Task(command, parameters);
 
 		return task;
+	}
+
+
+
+	/*** ParameterTools ***/
+
+	const char ParameterTools::PARAMETER_DELIMITER = ',';
+
+	vector<string> ParameterTools::parseParameterString(string parameterString)
+	{
+		vector<string> paramList;
+
+		// parse line
+		istringstream iss(parameterString);
+		string token;
+
+		// get features
+		while (getline(iss, token, PARAMETER_DELIMITER))
+		{
+			if (!token.empty())
+			{
+				paramList.push_back(token);
+			}
+		}
+
+		return paramList;
+	}
+
+	string ParameterTools::constructParameterString(vector<string> parameterList)
+	{
+		stringstream ss;
+		ss << "";
+
+		int numParams = parameterList.size();
+		if (numParams > 0)
+		{
+			if (parameterList[0].find(PARAMETER_DELIMITER) != std::string::npos)
+			{
+				cerr << "Parameter list to construct contains a delimiter character: " << parameterList[0] << endl;
+			}
+
+			ss << parameterList[0];
+		}
+		for (int i = 1; i < numParams; i++)
+		{
+			if (parameterList[i].find(PARAMETER_DELIMITER) != std::string::npos)
+			{
+				cerr << "Parameter list to construct contains a delimiter character: " << parameterList[i] << endl;
+			}
+
+			ss << PARAMETER_DELIMITER << parameterList[i];
+		}
+
+		return ss.str();
 	}
 }

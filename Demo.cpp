@@ -4,6 +4,11 @@
 
 void slaveDemo(std::vector<EasyMPI::Task> taskList);
 
+/*!
+ * This demo has the master send two tasks SIMPLE_DEMO and PARAM_LIST_DEMO to slaves. 
+ * SIMPLE_DEMO uses a simple parameter string. 
+ * PARAM_LIST_DEMO uses a list of parameters.
+ */
 int main(int argc, char* argv[])
 {
 	// initialize MPI: MUST CALL THIS BEFORE ANYTHING ELSE IN main()
@@ -11,12 +16,18 @@ int main(int argc, char* argv[])
 
 	// print rank and number of processes
 	std::cout << "Rank=" << EasyMPI::MPIScheduler::getProcessID() << std::endl;
-	std::cout << "Size=" << EasyMPI::MPIScheduler::getNumProcesses() << std::endl;
+	std::cout << "Size=" << EasyMPI::MPIScheduler::getNumProcesses() << std::endl << std::endl;
+
+	// set up parameter list for PARAM_LIST_DEMO
+	std::vector<std::string> paramList;
+	paramList.push_back("parameter 1");
+	paramList.push_back("parameter 2");
+	std::string paramString = EasyMPI::ParameterTools::constructParameterString(paramList);
 
 	// declare demo commands and their parameters
 	std::vector<EasyMPI::Task> taskList;
-	taskList.push_back(EasyMPI::Task("DEMO1", "params1"));
-	taskList.push_back(EasyMPI::Task("DEMO2", "params2"));
+	taskList.push_back(EasyMPI::Task("SIMPLE_DEMO", "this is a parameter string"));
+	taskList.push_back(EasyMPI::Task("PARAM_LIST_DEMO", paramString));
 
 	// begin master/slave demo
 	// this also handles the case when number of processes is 1
@@ -28,6 +39,7 @@ int main(int argc, char* argv[])
 	else
 	{
 		// run if slave or number of processes is 1
+		std::reverse(taskList.begin(), taskList.end()); // if you want to preserve task ordering
 		slaveDemo(taskList);
 	}
 
@@ -52,40 +64,50 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 		// otherwise if only one process, then perform task on master process
 		if (EasyMPI::MPIScheduler::getNumProcesses() > 1)
 		{
+			// block until a task is received from the master
 			task = EasyMPI::MPIScheduler::slaveWaitForTasks();
 		}
 		else
 		{
+			// if only one process is available, the master also processes tasks
 			if (taskList.empty())
 				break;
 
+			// note: gets task from the back
 			task = taskList.back();
 			taskList.pop_back();
 		}
 
-		std::cout << "Got command '" << task.getCommand() << "' and parameters '" << task.getParameters() << "'" << std::endl;
+		// print message received
+		std::cout << "Got command '" << task.getCommand() << "' and parameters '" << task.getParameters() << "' from master" << std::endl;
 
-		// define branches here to perform task depending on command
-		if (task.getCommand().compare("DEMO1") == 0)
+		// *** define branches here to perform task depending on command ***
+		if (task.getCommand().compare("SIMPLE_DEMO") == 0)
 		{
-			std::cout << "Got DEMO1 command on process " << EasyMPI::MPIScheduler::getProcessID() 
-				<< " with parameters: " << task.getParameters() << std::endl;
+			// output command and parameter string
+			std::cout << "Got SIMPLE_DEMO command on process " << EasyMPI::MPIScheduler::getProcessID() 
+				<< " with parameter string: '" << task.getParameters() << "'" << std::endl;
+			std::cout << std::endl;
 
-			//
-			// do stuff like call another function
-			//
+			// ... do other stuff ...
 
 			// declare finished
 			EasyMPI::MPIScheduler::slaveFinishedTask();
 		}
-		else if (task.getCommand().compare("DEMO2") == 0)
+		else if (task.getCommand().compare("PARAM_LIST_DEMO") == 0)
 		{
-			std::cout << "Got DEMO2 command on process " << EasyMPI::MPIScheduler::getProcessID() 
-				<< " with parameters: " << task.getParameters() << std::endl;
+			std::string paramString = task.getParameters();
+			std::vector<std::string> paramList = EasyMPI::ParameterTools::parseParameterString(paramString);
+			int numParameters = paramList.size();
 
-			//
-			// do stuff like call another function
-			//
+			// output command and parameter list
+			std::cout << "Got PARAM_LIST_DEMO command on process " << EasyMPI::MPIScheduler::getProcessID() 
+				<< " with " << numParameters << " parameters: " << std::endl;
+			for (std::vector<std::string>::iterator it = paramList.begin(); it != paramList.end(); it++)
+				std::cout << "\t" << *it << std::endl;
+			std::cout << std::endl;
+
+			// ... do other stuff ...
 
 			// declare finished
 			EasyMPI::MPIScheduler::slaveFinishedTask();
@@ -95,6 +117,7 @@ void slaveDemo(std::vector<EasyMPI::Task> taskList)
 			std::cout << "Got the master finish command on process " << EasyMPI::MPIScheduler::getProcessID()
 				<< ". Exiting slave loop..." << std::endl;
 
+			// this branch is crucial to exit the slave loop
 			break;
 		}
 		else
